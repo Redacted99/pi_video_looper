@@ -231,9 +231,17 @@ class VideoLooper:
                         repeat = repeatsetting.group(1)
                     else:
                         repeat = 1
+                    
                     basename, extension = os.path.splitext(x)
-                    movies.append(Movie('{0}/{1}'.format(path.rstrip('/'), x), basename, repeat))
-
+                    
+                    # jk Handle special kiosk file if necessary
+                    if basename == "kiosk" :
+                        repeat = 100000000
+                        movies.insert(0,Movie('{0}/{1}'.format(path.rstrip('/'), x), basename, repeat))
+                    else:
+                        movies.append(Movie('{0}/{1}'.format(path.rstrip('/'), x), basename, repeat))
+            for m in movies:
+                print(m)
             # Get the ALSA hardware volume from the file in the usb key
             if self._alsa_hw_vol_file:
                 alsa_hw_vol_file_path = '{0}/{1}'.format(path.rstrip('/'), self._alsa_hw_vol_file)
@@ -251,8 +259,9 @@ class VideoLooper:
                         if self._is_number(sound_vol_string):
                             self._sound_vol = int(float(sound_vol_string))
         # Create a playlist with the sorted list of movies.
-        return Playlist(sorted(movies))
-
+        # jk -- was-- return Playlist(sorted(movies))
+        return Playlist(movies)
+        
     def _blank_screen(self):
         """Render a blank screen filled with the background color and optional the background image."""
         self._screen.fill(self._bgcolor)
@@ -354,6 +363,7 @@ class VideoLooper:
             self._blank_screen()
         else:
             self._idle_message()
+
 
     def _set_hardware_volume(self):
         if self._alsa_hw_vol != None:
