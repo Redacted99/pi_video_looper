@@ -74,6 +74,16 @@ class VideoLooper:
         self._fgcolor = list(map(int, self._config.get('video_looper', 'fgcolor')
                                              .translate(str.maketrans('','', ','))
                                              .split()))
+        # load config values for kiosk movie -jk
+        kiosk_file = self._config.get("video_looper","kiosk_file")
+        # kiosk_on is true if we have kiosk configured, kiosk_inmode is true is we are showing the kiosk movie
+        if kiosk_file: 
+            if os.path.isfile(kiosk_file):
+                self.kiosk_movie = Movie(kiosk_file,"",2000000000)
+            else:
+                self._print('Kiosk movie {0} does not exist.'.format(kiosk_file))
+        # should we create a logging file?
+        self._enable_logging = self._config.getboolean('video_looper', 'enable_logging')
         # Initialize pygame and display a blank screen.
         pygame.display.init()
         pygame.font.init()
@@ -116,6 +126,12 @@ class VideoLooper:
         if self._console_output:
             now = datetime.now()
             print("[{}] {}".format(now, message))
+
+    def _logger(self, action, item):
+        if self._enable_logging:
+            now = datetime.now()
+            with open('/var/log/pi_looper_usage.log','ab') as f:
+                f.write("'{}','{}','{}'",format(now, action,item))
 
     def _load_player(self):
         """Load the configured video player and return an instance of it."""
@@ -233,15 +249,8 @@ class VideoLooper:
                         repeat = 1
                     
                     basename, extension = os.path.splitext(x)
-                    
-                    # jk Handle special kiosk file if necessary
-                    if basename == "kiosk" :
-                        repeat = 100000000
-                        movies.insert(0,Movie('{0}/{1}'.format(path.rstrip('/'), x), basename, repeat))
-                    else:
-                        movies.append(Movie('{0}/{1}'.format(path.rstrip('/'), x), basename, repeat))
-            for m in movies:
-                print(m)
+                    movies.append(Movie('{0}/{1}'.format(path.rstrip('/'), x), basename, repeat))
+                    self._print("Added a movie")
             # Get the ALSA hardware volume from the file in the usb key
             if self._alsa_hw_vol_file:
                 alsa_hw_vol_file_path = '{0}/{1}'.format(path.rstrip('/'), self._alsa_hw_vol_file)
@@ -259,7 +268,12 @@ class VideoLooper:
                         if self._is_number(sound_vol_string):
                             self._sound_vol = int(float(sound_vol_string))
         # Create a playlist with the sorted list of movies.
-        # jk -- was-- return Playlist(sorted(movies))
+        # jk -- add kiosk movie to start if present  return Playlist(sorted(movies))
+        movies = sorted(movies)
+        self._print(f"Sorted {len(movies)} movies")
+        if self.kiosk_movie:
+            movies.insert(0, self.kiosk_movie)
+            self._print(f"We now have {len(movies)} movies")
         return Playlist(movies)
         
     def _blank_screen(self):
@@ -378,7 +392,7 @@ class VideoLooper:
                 cmd.extend(('-c', str(self._alsa_hw_device[0])))
             cmd.extend(('set', self._alsa_hw_vol_control, '--', self._alsa_hw_vol))
             subprocess.check_call(cmd)
-            
+
     def _handle_keyboard_shortcuts(self):
         while self._running:
             event = pygame.event.wait()
@@ -399,16 +413,26 @@ class VideoLooper:
                         self._print("s was pressed. stopping...")
                         self._playbackStopped = True
                         self._player.stop(3)
-                if event.key == pygame.K_p:
-                    self._print("p was pressed. shutting down...")
+                # space is pause resume
+                if event.key == pygame.K_SPACE:
+                    self._print("Pause/Resume")
+
+                if event.key == pygame.K_x:
+                    self._print("x was pressed. shutting down...")
                     self.quit(True)
                 if event.key == pygame.K_b:
                     self._print("b was pressed. jumping back...")
                     self._playlist.seek(-1)
                     self._player.stop(3)
-                    
-                    
-
+                # select movie
+                if pygame.K_0 <= event.key <= pygame.K_9:
+                    self._print(f"In handler with {event.key}")
+                    moviendx = event.key - pygame.K_0
+                    #self._print(f'request play of movie {moviendx} with length of {self._playlist.length()}' )
+                    if moviendx < self._playlist.length():
+                        self._print(f"selected movie {moviendx} for play")
+                        self._playlist.jump(moviendx)
+                        self._player.stop(3)
 
     def run(self):
         """Main program loop.  Will never return!"""
@@ -450,6 +474,7 @@ class VideoLooper:
 
                     # Start playing the first available movie.
                     self._print('Playing movie: {0} {1}'.format(movie, infotext))
+                    self._logger('Play', '{0}'.format(movie))
                     # todo: maybe clear screen to black so that background (image/color) is not visible for videos with a resolution that is < screen resolution
                     self._player.play(movie, loop=-1 if self._playlist.length()==1 else None, vol = self._sound_vol)
 
