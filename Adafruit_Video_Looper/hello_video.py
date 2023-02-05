@@ -49,6 +49,10 @@ class HelloVideoPlayer:
             return False
         self._process.poll()
         return self._process.returncode is None
+    
+    def pause(self):
+        # todo add pause capability if needed
+        
 
     def stop(self, block_timeout_sec=0):
         """Stop the video player.  block_timeout_sec is how many seconds to

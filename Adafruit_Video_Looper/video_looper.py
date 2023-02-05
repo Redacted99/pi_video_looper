@@ -416,6 +416,7 @@ class VideoLooper:
                 # space is pause resume
                 if event.key == pygame.K_SPACE:
                     self._print("Pause/Resume")
+                    self._player.pause()
 
                 if event.key == pygame.K_x:
                     self._print("x was pressed. shutting down...")

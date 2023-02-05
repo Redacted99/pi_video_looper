@@ -75,7 +75,13 @@ class OMXPlayer:
         # Run omxplayer process and direct standard output to /dev/null.
         self._process = subprocess.Popen(args,
                                          stdout=open(os.devnull, 'wb'),
+                                         stdin=subprocess.PIPE,
                                          close_fds=True)
+
+    def pause(self):
+        if self.is_playing:
+            self._process.stdin.write('p'.encode())
+            self._process.stdin.flush()
 
     def is_playing(self):
         """Return true if the video player is running, false otherwise."""
@@ -90,11 +96,9 @@ class OMXPlayer:
         """
         # Stop the player if it's running.
         if self._process is not None and self._process.returncode is None:
-            # There are a couple processes used by omxplayer, so kill both
-            # with a pkill command.
-            subprocess.call(['pkill', '-9', 'omxplayer'])
-        # If a blocking timeout was specified, wait up to that amount of time
-        # for the process to stop.
+            self._process.stdin.write('q'.encode())
+            self._process.stdin.flush()
+            
         start = time.time()
         while self._process is not None and self._process.returncode is None:
             if (time.time() - start) >= block_timeout_sec:
