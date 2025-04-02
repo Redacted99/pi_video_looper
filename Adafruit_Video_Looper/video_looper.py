@@ -428,13 +428,17 @@ class VideoLooper:
                 # select movie
                 if pygame.K_0 <= event.key <= pygame.K_9:
                     self._print(f"In handler with {event.key}")
-                    moviendx = event.key - pygame.K_0
+                    # code change to interpret SHIFT 0 - SHIFT 9 as 10 to 19.  Adder is 10 if shift key is pressed
+                    adder = 0
+                    if event.mod & pygame.KMOD_SHIFT:
+                        self.print('Left shift or right shift or both were pressed ')
+                        adder = 10
+                    moviendx = event.key - pygame.K_0 + adder
                     #self._print(f'request play of movie {moviendx} with length of {self._playlist.length()}' )
                     if moviendx < self._playlist.length():
                         self._print(f"selected movie {moviendx} for play")
                         self._playlist.jump(moviendx)
                         self._player.stop(3)
-
     def run(self):
         """Main program loop.  Will never return!"""
         # Get playlist of movies to play from file reader.
