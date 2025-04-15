@@ -82,6 +82,8 @@ class VideoLooper:
                 self.kiosk_movie = Movie(kiosk_file,"",2000000000)
             else:
                 self._print('Kiosk movie {0} does not exist.'.format(kiosk_file))
+        # clear the movie selection key buffer  -jk
+        self._selectionKeyBuffer = ""
         # should we create a logging file?
         self._enable_logging = self._config.getboolean('video_looper', 'enable_logging')
         # Initialize pygame and display a blank screen.
@@ -425,23 +427,28 @@ class VideoLooper:
                     self._print("b was pressed. jumping back...")
                     self._playlist.seek(-1)
                     self._player.stop(3)
-                # select movie
+                    
+                # select a specific movie -jk
+                # save value if we have a numeric key
                 if pygame.K_0 <= event.key <= pygame.K_9:
-                    self._print(f"In handler with {event.key}")
-                    # code change to interpret SHIFT 0 - SHIFT 9 as 10 to 19.  Adder is 10 if shift key is pressed
-                    bias = 0
-                    if event.mod & pygame.KMOD_SHIFT:
-                        #self.print('Left shift or right shift or both were pressed ')
-                        bias = 10
-                    elif event.mod & pygame.KMOD_CTRL:
-                        #self.print('CTRL was pressed ')
-                        bias = 20
-                    moviendx = event.key - pygame.K_0 + bias
-                    #self._print(f'request play of movie {moviendx} with length of {self._playlist.length()}' )
-                    if moviendx < self._playlist.length():
-                        self._print(f"selected movie {moviendx} for play")
-                        self._playlist.jump(moviendx)
-                        self._player.stop(3)
+                    _selectionKeyBuffer += str(event.key - pygame.K_0)
+                    self._print(f"In numeric handler with {pygame.key.name(event.key)} buffer is {_selectionKeyBuffer}")
+                # convert buffer to index if we have a return key
+                elif event.key == pygame.K_RETURN:
+                    movieIndex = 0   # default if we just hit enter
+                    if (len(_selectionKeyBuffer) > 0):
+                        if (_selectionKeyBuffer.isdigit()):
+                            movieIndex = int(_selectionKeyBuffer)
+                            # check that movieIndex is in range
+                            if movieIndx >= self._playlist.length():
+                                self._print(f"Tried to select a movie {movieIndex} that was out of range.  0 is used instead")
+                                movieIndex = 0
+                        else:
+                            self._print("logic error -- have unexpected strselectionKeyBuffer of {_selectionKeyBuffer}")
+                    self._print(f"selected movie {movieIndex} for play")
+                    _selectionKeyBuffer = ""
+                    self._playlist.jump(moviendx)
+                    self._player.stop(3)
     def run(self):
         """Main program loop.  Will never return!"""
         # Get playlist of movies to play from file reader.
